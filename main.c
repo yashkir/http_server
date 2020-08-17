@@ -13,9 +13,37 @@
 
 int server_fd;
 
+/* Load a file into a buffer, returns -1 on error */
+int load_file(const char *filename, char *buffer, int n)
+{
+    FILE* fp;
+    int i;
+
+    fp = fopen(filename, "r");
+
+    if (fp == NULL)
+    {
+        perror("Load file error");
+        return -1;
+    }
+
+    for(i = 0; i < n; i++)
+    {
+        buffer[i] = fgetc(fp);
+        if (feof(fp))
+        {
+            buffer[i] = '\0';
+            break;
+        }
+    }
+
+    fclose(fp);
+}
+
+/* Clean up sockets on SIGINT */
 void handle_sigint(int sig)
 {
-    printf("SIGINT: shutting down socket...\n");
+    printf("\n\033[31;1mSIGINT: shutting down socket...\033[0m\n");
     /*if (shutdown(server_fd, SHUT_RDWR))
     {
         printf("Error shutting down socket!\n");
@@ -29,52 +57,74 @@ void handle_sigint(int sig)
     exit(0);
 }
 
+/* Sends a 200 or 404 appropriate to the request. */
 int send_reply(int socket_fd, const char *request)
 {
     char reply[MAX_REPLY] = "Default Reply.";
     char unknown[] = "Unknown request.\n";
 
-    char filename[1024];
+    char buffer[1024];
+    char path[1024]; //TODO dynamic
     char length[256];
     char GET[4];
     int i;
 
     strcpy(GET, "GET");
 
+    /* Check the type of request */
     if (strncmp(GET, request, 3) == 0)
     {
         printf("received GET\n");
+
+        /* Get the filename */
         for (i = 4; i < strlen(request); ++i)
         {
             if (isspace(request[i]))
             {
-                filename[i-4] = '\0';
-                break;
+              path[i - 4] = '\0';
+              break;
             }
             else
             {
-                filename[i-4] = request[i];
+              path[i - 4] = request[i];
             }
 
         }
-        printf("Filename requested: %s", filename);
 
-        strcpy(reply, "HTTP/1.1 200 OK\n");
-        strcat(reply, "Content-Type: text/html\n");
-        sprintf(length, "Content-Length: %ld\n\n", strlen(filename));//TODO smaller
-        strcat(reply, length);
-        strcat(reply, filename);
+        printf("Path requested: %s\n", path);
+
+        /* Route root to index.html */
+        if (strcmp(path, "/") == 0) {
+          strcpy(path, "index.html");
+        }
+
+        /* Try to load the requested file and reply */
+        if (load_file(path, buffer, 1024) == 0)
+        {
+            strcpy(reply, "HTTP/1.1 200 OK\n");
+            strcat(reply, "Content-Type: text/html\n");
+            sprintf(length, "Content-Length: %ld\n\n", strlen(buffer)); // TODO smaller + buffer
+            strcat(reply, length);
+            strcat(reply, buffer); 
+        }
+        else
+        {
+            strcpy(reply, "HTTP/1.1 404 Not Found\n");
+        }
+
+
     }
     else
     {
         strcpy(reply, unknown);
     }
 
-    printf("Sending:\n'%s'\n", reply);
+    printf("Sending %ld:\n'%s'\n", strlen(reply), reply);
     write(socket_fd, reply, strlen(reply));
 
 }
 
+/* Initializes sockets, binds, listens, and runs an accept() loop */
 int main(int argc, char **argv)
 {
     int new_socket;
@@ -86,6 +136,8 @@ int main(int argc, char **argv)
     char buffer[1024] = {0}; //TODO
 
     signal(SIGINT, handle_sigint);
+
+    printf("\n\033[34;1m--> STARTING SERVER . . .\033[0m\n");
 
     /* Socket */
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -140,7 +192,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            //printf("\n\nReceived request:\n%s\n\n", buffer);
+            /* Let send_reply take over */
             send_reply(new_socket, buffer);
         }
         close(new_socket);
