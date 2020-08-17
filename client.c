@@ -1,13 +1,21 @@
+/*
+ * Title:       C HTTP Client
+ * Author:      Yuriy Yashkir <yuriy.yashkir@gmail.com>
+ * Description: Tests the server by requesting a file.
+ */
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
+#define ADDRESS "127.0.0.1"
 #define PORT 8080
+
 
 int main(int argc, char const *argv[])
 {
@@ -15,41 +23,57 @@ int main(int argc, char const *argv[])
     int valread;
     struct sockaddr_in server_addr;
 
-    char *hello = "<strong>Hello</hello> from client.";
+    char *hello = "GET / HTTP/1.1";
     char buffer[1024] = {0}; //TODO
 
-    /* Socket */
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    printf("--------------------\n");
+    printf("--- HTTP  CLIENT ---\n");
+    printf("--------------------\n\n");
 
-    if (sock < 0)
+    printf("Creating socket ...\n");
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("cannot create socket");
         return -1;
     }
 
-    /* Connect 
-     * Set our struct to 0 and convert our parameters to internal
-     * representations. */
+    printf("Setting server address(%s) and port(%d) ...\n", ADDRESS, PORT);
+
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
-
-    if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0)
+    if (inet_pton(AF_INET, ADDRESS, &server_addr.sin_addr) <= 0)
     {
         printf("Invalid or unsupported Address.\n");
         return -1;
     }
 
+    printf("Connecting to %s:%d ...\n", ADDRESS, PORT);
+
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
-        perror("Connection Failed.\n");
+        perror("Connection Failed");
         return -1;
     }
 
-    /* Send and Receive */
-    send(sock, hello, strlen(hello), 0);
-    printf("Hello sent to server...");
-    valread = read(sock, buffer, 1024);
-    printf("Got:\n----------\n%s\n----------\n", buffer);
+    printf("Sending request...");
+
+    if (send(sock, hello, strlen(hello), 0) < 0)
+    {
+        fprintf(stderr, "Failed to send.");
+        return -1;
+    }
+
+    printf("Reading reply ...\n");
+
+    if ((valread = read(sock, buffer, 1024)) < 1)
+    {
+        fprintf(stderr, "Unable to read.");
+        return -1;
+    }
+
+    printf("Read %d:\n----------\n%s\n----------\n", valread, buffer);
+
     return 0;
 }

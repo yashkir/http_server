@@ -1,3 +1,12 @@
+/*
+ * Title:       C HTTP Server
+ * Author:      Yuriy Yashkir <yuriy.yashkir@gmail.com>
+ * Description: Written as an exercise in understanding sockets and HTTP.
+ *
+ * Functionality:
+ *   - replies to `GET file` requests
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -38,6 +47,8 @@ int load_file(const char *filename, char *buffer, int n)
     }
 
     fclose(fp);
+
+    return 0;
 }
 
 /* Clean up sockets on SIGINT */
@@ -122,6 +133,7 @@ int send_reply(int socket_fd, const char *request)
     printf("Sending %ld:\n'%s'\n", strlen(reply), reply);
     write(socket_fd, reply, strlen(reply));
 
+    return 0;
 }
 
 /* Initializes sockets, binds, listens, and runs an accept() loop */
