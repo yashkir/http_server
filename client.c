@@ -50,6 +50,6 @@ int main(int argc, char const *argv[])
     send(sock, hello, strlen(hello), 0);
     printf("Hello sent to server...");
     valread = read(sock, buffer, 1024);
-    printf("Got:\n----------\n%s----------\n", buffer);
+    printf("Got:\n----------\n%s\n----------\n", buffer);
     return 0;
 }
